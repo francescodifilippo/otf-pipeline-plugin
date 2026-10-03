@@ -1,0 +1,18 @@
+// Conditional provisioning must evaluate `when` before the stage options.
+pipeline {
+  agent none
+  stages {
+    stage('Conditional OTF plan') {
+      when {
+        beforeOptions true
+        branch 'main'
+      }
+      agent none
+      options {
+        otfProvision(server: 'otf-prod', workspaceId: 'ws-main',
+          operationKey: 'conditional-plan', mode: 'plan', waitForCompletion: true)
+      }
+      steps { echo 'Plan complete on main' }
+    }
+  }
+}

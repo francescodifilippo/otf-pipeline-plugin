@@ -1,0 +1,25 @@
+pipeline {
+    agent none
+    stages {
+        stage('Start OTF plan') {
+            agent none
+            options {
+                otfProvision(server: 'otf-prod', workspaceId: 'ws-prod', mode: 'plan',
+                             operationKey: 'network-plan', waitForCompletion: false)
+            }
+            steps { echo 'OTF accepted the plan; other stages can proceed.' }
+        }
+        stage('Independent validation') {
+            agent any
+            steps { echo 'Run whatever does not depend on the OTF plan.' }
+        }
+        stage('Await OTF plan') {
+            agent none
+            options {
+                otfAwait(server: 'otf-prod', operationKey: 'network-plan',
+                         timeoutMinutes: 90, pollingSeconds: 10)
+            }
+            steps { echo 'Plan finished successfully.' }
+        }
+    }
+}
