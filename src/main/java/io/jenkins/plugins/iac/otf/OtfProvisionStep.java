@@ -11,6 +11,8 @@ import org.kohsuke.stapler.DataBoundSetter;
 public final class OtfProvisionStep extends AbstractProvisionStep {
  private String mode="plan";
  @DataBoundConstructor public OtfProvisionStep(String server,String workspaceId){super(server,workspaceId);}
+ public String getServer(){return getConnectionId();}
+ public String getWorkspaceId(){return getTargetId();}
  public String getMode(){return mode;}
  @DataBoundSetter public void setMode(String v){
    if(!"plan".equals(v)&&!"apply".equals(v)) throw new IllegalArgumentException("mode must be plan/apply");
