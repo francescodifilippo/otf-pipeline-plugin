@@ -9,6 +9,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
 /** Declarative stage option: options { otfAwait(...) } */
 public final class OtfAwaitStep extends AbstractAwaitStep {
  @DataBoundConstructor public OtfAwaitStep(String server,String operationKey){super(server,operationKey);}
+ public String getServer(){return getConnectionId();}
  @Override protected String provider(){return "otf";}
  @Extension public static final class DescriptorImpl extends StepDescriptor {
   @Override public String getFunctionName(){return "otfAwait";}
