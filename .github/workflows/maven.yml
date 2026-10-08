@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout provider
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
       with:
         path: provider
 
@@ -28,7 +28,7 @@ jobs:
         fi
 
     - name: Checkout IaC Pipeline API
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
       with:
         repository: ${{ github.repository_owner }}/iac-pipeline-api-plugin
         ref: ${{ steps.core-ref.outputs.ref }}
