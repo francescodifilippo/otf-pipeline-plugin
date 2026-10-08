@@ -14,7 +14,7 @@
  </scm>
  <issueManagement><system>GitHub</system><url>https://github.com/francescodifilippo/otf-pipeline-plugin/issues</url></issueManagement>
  <properties><jenkins.baseline>2.568</jenkins.baseline><jenkins.version>${jenkins.baseline}.3</jenkins.version><java.level>21</java.level></properties>
- <dependencyManagement><dependencies><dependency><groupId>io.jenkins.tools.bom</groupId><artifactId>bom-${jenkins.baseline}.x</artifactId><version>7020.vf38cb_40380d1</version><type>pom</type><scope>import</scope></dependency></dependencies></dependencyManagement>
+ <dependencyManagement><dependencies><dependency><groupId>io.jenkins.tools.bom</groupId><artifactId>bom-${jenkins.baseline}.x</artifactId><version>7134.vc450c4b_83de0</version><type>pom</type><scope>import</scope></dependency></dependencies></dependencyManagement>
  <dependencies>
   <dependency><groupId>io.jenkins.plugins</groupId><artifactId>iac-pipeline-api</artifactId><version>0.1.0-SNAPSHOT</version></dependency>
   <dependency><groupId>org.jenkinsci.plugins</groupId><artifactId>pipeline-model-definition</artifactId></dependency>
