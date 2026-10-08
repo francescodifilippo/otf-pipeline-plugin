@@ -1,4 +1,5 @@
-# Jenkins Security Scan (official Jenkins workflow)
+# Jenkins-specific CodeQL scan with local bootstrap of the unpublished IaC Pipeline API.
+# Revert to the official reusable Jenkins Security Scan workflow once the core is released.
 # https://www.jenkins.io/doc/developer/security/scan/
 name: Jenkins Security Scan
 
@@ -17,7 +18,78 @@ permissions:
 
 jobs:
   security-scan:
-    uses: jenkins-infra/jenkins-security-scan/.github/workflows/jenkins-security-scan.yaml@da7438f10fecc21e40174d420ef34daae0874122 # v2
-    with:
-      java-version: '21'
-      java-cache: 'maven'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out provider
+        uses: actions/checkout@v4
+        with:
+          path: provider
+
+      - name: Resolve IaC core ref
+        id: core-ref
+        shell: bash
+        run: |
+          candidate="${{ github.head_ref || github.ref_name }}"
+          core_url="https://github.com/${{ github.repository_owner }}/iac-pipeline-api-plugin.git"
+          if git ls-remote --exit-code --heads "$core_url" "$candidate" >/dev/null 2>&1; then
+            echo "ref=$candidate" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=main" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check out IaC Pipeline API
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/iac-pipeline-api-plugin
+          ref: ${{ steps.core-ref.outputs.ref }}
+          path: iac-pipeline-api-plugin
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: '**/pom.xml'
+
+      # Build the unpublished core before CodeQL initialization so that CodeQL
+      # analyzes this provider, without duplicating findings from the core.
+      - name: Install unpublished IaC Pipeline API
+        run: mvn -B -ntp -DskipTests install --file iac-pipeline-api-plugin/pom.xml
+
+      - name: Initialize Jenkins CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: java
+          config: |
+            disable-default-queries: true
+            packs:
+              - jenkins-infra/jenkins-codeql@0.0.3
+              - codeql/java-queries:AlertSuppression.ql
+              - codeql/java-queries:AlertSuppressionAnnotations.ql
+
+      - name: Build provider for CodeQL
+        run: mvn -B -ntp -DskipTests package --file provider/pom.xml
+
+      - name: Run Jenkins CodeQL rules
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: Jenkins Security Scan
+          upload: failure-only
+
+      - name: Process SARIF
+        run: |
+          jq 'setpath(path(.runs[].tool.driver.name); "Jenkins Security Scan") | setpath(path(.runs[].tool.driver.organization); "Jenkins Project") | del(.runs[].results[] | select( .suppressions | length != 0 ))' ../results/java.sarif > jenkins-security-scan.sarif
+          mv -v ../results/java.sarif .
+
+      - name: Archive SARIF
+        uses: actions/upload-artifact@v4
+        with:
+          path: '*.sarif'
+          name: Jenkins Security Scan SARIF
+
+      - name: Upload Scan Result
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: jenkins-security-scan.sarif
+          category: Jenkins Security Scan
