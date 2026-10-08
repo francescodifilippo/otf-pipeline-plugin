@@ -1,12 +1,39 @@
 # Contributing
 
-This repository is an independently versioned Jenkins plugin. Changes to shared
-interfaces belong in `iac-pipeline-api-plugin` first; update dependency versions
-deliberately. Do not merge API-breaking changes into dependent provider plugins
-without cross-repository compatibility checks.
+Thanks for contributing to this Jenkins plugin family.
 
-## Development
+## Development environment
 
-Use Java 21 and Maven 3.9.6+. Run `mvn -B -ntp verify` before submitting PRs.
-Changes to Declarative stage options require JenkinsRule and Pipeline parser tests.
-Until integration validation is complete, treat these sources as experimental.
+- Java 21
+- Maven 3.9.6 or newer
+
+Run before opening a pull request:
+
+```bash
+mvn -B -ntp verify
+```
+
+Provider repositories require the matching `iac-pipeline-api` build to be installed first:
+
+```bash
+(cd ../iac-pipeline-api-plugin && mvn -B -ntp install)
+mvn -B -ntp verify
+```
+
+## Cross-repository changes
+
+Shared lifecycle or provider contracts belong in `iac-pipeline-api-plugin` first. Keep provider changes coordinated with the core branch/version they require.
+
+Public Pipeline DSL changes must be documented and tested. Avoid unnecessary breaking changes once a plugin has a published release.
+
+## Tests
+
+Add or update tests for behavior changes. Jenkins-specific lifecycle, descriptor, Pipeline, persistence, or restart behavior should use the Jenkins test harness rather than only plain unit tests.
+
+## Security
+
+Never commit credentials, API tokens, PEM keys, production endpoints containing secrets, or sensitive build logs. Follow [SECURITY.md](SECURITY.md) for vulnerability reporting.
+
+## Pull requests
+
+Keep changes focused, document user-visible behavior, and make sure CI is green before merge.
