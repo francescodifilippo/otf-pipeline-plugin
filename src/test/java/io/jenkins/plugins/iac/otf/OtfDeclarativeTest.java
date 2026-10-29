@@ -14,6 +14,7 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -34,6 +35,10 @@ class OtfDeclarativeTest {
  private HttpServer otf;
  private final List<String> submits=new CopyOnWriteArrayList<>();
  private final Queue<String> statuses=new ConcurrentLinkedQueue<>();
+ private final List<String> lookups=new CopyOnWriteArrayList<>();
+ /** Workspaces served by name: acme/network is ws-net, acme/db.prod is ws-db, acme/secret answers 403. */
+ private static final Map<String,String> WORKSPACES=Map.of("/api/v2/organizations/acme/workspaces/network","ws-net",
+   "/api/v2/organizations/acme/workspaces/db.prod","ws-db");
 
  @BeforeEach void setUp(JenkinsRule rule) throws Exception {
   j=rule;
@@ -45,6 +50,18 @@ class OtfDeclarativeTest {
   otf.createContext("/api/v2/runs/run-1",exchange -> {
    String next=statuses.poll();
    respond(exchange,200,next==null?"applying":next);
+  });
+  otf.createContext("/api/v2/organizations/",exchange -> {
+   String path=exchange.getRequestURI().getRawPath();
+   lookups.add(exchange.getRequestMethod()+" "+path);
+   String id=WORKSPACES.get(path);
+   int code=id!=null?200:path.endsWith("/secret")?403:404;
+   byte[] body=(id==null?"{\"errors\":[{\"status\":\""+code+"\"}]}":
+     "{\"data\":{\"id\":\""+id+"\",\"type\":\"workspaces\",\"attributes\":{\"name\":\""+path.substring(path.lastIndexOf('/')+1)+"\"}}}")
+     .getBytes(StandardCharsets.UTF_8);
+   exchange.getResponseHeaders().set("Content-Type","application/vnd.api+json");
+   exchange.sendResponseHeaders(code,body.length);
+   try(OutputStream o=exchange.getResponseBody()){o.write(body);}
   });
   otf.start();
   SystemCredentialsProvider.getInstance().getCredentials().add(
@@ -81,6 +98,58 @@ class OtfDeclarativeTest {
   j.assertLogNotContains("applied body",b);
  }
 
+ @Test void workspaceIdMakesNoLookup() throws Exception {
+  statuses.add("planned_and_finished");
+  WorkflowRun b=j.buildAndAssertSuccess(pipeline(
+    "stage('plan') {\n options {\n otfProvision(server: 'otf-test', workspaceId: 'ws-1', pollingSeconds: 5)\n }\n steps {\n echo 'plan body'\n }\n}"));
+  assertEquals(List.of(),lookups);
+  assertTrue(submits.get(0).contains("\"id\":\"ws-1\""),submits.get(0));
+  j.assertLogNotContains("resolved target",b);
+  j.assertLogContains("plan body",b);
+ }
+
+ @Test void workspaceNameIsResolvedOnceThenAwaited() throws Exception {
+  statuses.add("planned");statuses.add("applied");
+  WorkflowRun b=j.buildAndAssertSuccess(pipeline(
+    "stage('apply') {\n options {\n otfProvision(server: 'otf-test', organization: 'acme', workspaceName: 'db.prod', mode: 'apply', operationKey: 'deploy', waitForCompletion: false)\n }\n"+
+    " steps {\n echo 'submitted'\n }\n}\n"+
+    "stage('await') {\n options {\n otfAwait(server: 'otf-test', operationKey: 'deploy', pollingSeconds: 5)\n }\n"+
+    " steps {\n echo 'awaited'\n }\n}"));
+  assertEquals(List.of("GET /api/v2/organizations/acme/workspaces/db.prod"),lookups);
+  assertEquals(1,submits.size());
+  assertTrue(submits.get(0).contains("\"id\":\"ws-db\""),submits.get(0));
+  j.assertLogContains("IaC otf: resolved target to ws-db",b);
+  j.assertLogContains("submitting target ws-db with operationKey deploy",b);
+  j.assertLogContains("completed ID run-1 with status applied",b);
+  j.assertLogContains("awaited",b);
+ }
+
+ @Test void stagesNamingDifferentWorkspacesGetDifferentDefaultKeys() throws Exception {
+  statuses.add("planned_and_finished");statuses.add("planned_and_finished");
+  j.buildAndAssertSuccess(pipeline(byName("network")+"\n"+byName("db.prod")));
+  assertEquals(2,lookups.size());
+  assertEquals(2,submits.size());
+  assertTrue(submits.get(0).contains("\"id\":\"ws-net\""),submits.get(0));
+  assertTrue(submits.get(1).contains("\"id\":\"ws-db\""),submits.get(1));
+ }
+
+ @Test void unknownWorkspaceNameFailsBeforeSubmitting() throws Exception {
+  WorkflowRun b=j.buildAndAssertStatus(Result.FAILURE,pipeline(byName("Network")));
+  j.assertLogContains("No OTF workspace named 'Network' in organization 'acme'; check organization and workspaceName, or use workspaceId",b);
+  assertEquals(1,lookups.size());
+  assertEquals(0,submits.size());
+  j.assertLogNotContains("submitting target",b);
+  j.assertLogNotContains("plan body",b);
+ }
+
+ @Test void forbiddenLookupFailsWithTheHttpStatus() throws Exception {
+  WorkflowRun b=j.buildAndAssertStatus(Result.FAILURE,pipeline(byName("secret")));
+  j.assertLogContains("IaC API HTTP 403 for GET /api/v2/organizations/acme/workspaces/secret",b);
+  assertEquals(1,lookups.size());
+  assertEquals(0,submits.size());
+  j.assertLogNotContains("plan body",b);
+ }
+
  @Test void workspaceIdOrWorkspaceNameIsRequired() throws Exception {
   assertRejected("server: 'otf-test'","otfProvision needs workspaceId, or workspaceName with organization, in the stage options");
  }
@@ -106,6 +175,11 @@ class OtfDeclarativeTest {
   j.assertLogNotContains("submitting target",b);
   j.assertLogNotContains("plan body",b);
   assertEquals(0,submits.size());
+  assertEquals(List.of(),lookups);
+ }
+ private static String byName(String name){
+  return "stage('plan "+name+"') {\n options {\n otfProvision(server: 'otf-test', organization: 'acme', workspaceName: '"+name+"', pollingSeconds: 5)\n }\n"+
+    " steps {\n echo 'plan body'\n }\n}";
  }
 
  private WorkflowJob pipeline(String stages) throws Exception {
