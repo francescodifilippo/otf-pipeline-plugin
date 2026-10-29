@@ -25,9 +25,6 @@ public final class OtfApi {
  public JobResult status(String id) throws IOException,InterruptedException {
   return parse(transport.request("GET","/api/v2/runs/"+Identifiers.required(id,"remoteId"),null));
  }
- public void confirm(String id) throws IOException,InterruptedException {
-  transport.request("POST","/api/v2/runs/"+Identifiers.required(id,"remoteId")+"/actions/apply",null);
- }
  static JobResult parse(JsonNode response) throws IOException {
   return HttpJsonClient.parse(response,SUCCESS,FAILED,APPROVAL);
  }
