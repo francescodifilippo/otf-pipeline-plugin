@@ -45,7 +45,29 @@ Key parameters:
 
 ### `otfAwait`
 
-Uses `server` and a previously submitted `operationKey` to resume waiting later in the same build.
+Uses `server` and a previously submitted `operationKey` to resume waiting later in the same build. The provision stage it refers to must set that `operationKey` explicitly.
+
+## Operation keys
+
+- Without `operationKey`, the default key is derived from the provider, `workspaceId`, and `mode`, so a plan stage and an apply stage on the same workspace both submit. Default keys are internal: do not reference them from `otfAwait`.
+- Reusing an `operationKey` in another `otfProvision` stage of the same build fails that stage instead of adopting the earlier run. This includes a provision stage re-run in the same build, for example inside `retry`: give each attempt its own key.
+
+## Run status handling
+
+Runs are always created with `auto-apply: false`. The plugin maps OTF run statuses as follows:
+
+| OTF status | Result |
+| --- | --- |
+| `applied`, `planned_and_finished` | success; the stage body runs |
+| `errored`, `canceled`, `force_canceled`, `discarded` | the stage fails |
+| `planned`, `cost_estimated` | approval pending: the log reports it and polling continues until the run is confirmed in OTF or `timeoutMinutes` elapses |
+| any other status (`pending`, `plan_queued`, `planning`, `confirmed`, `apply_queued`, `applying`, ...) | in progress; polling continues |
+
+- `mode: 'plan'` creates a plan-only run, which ends in `planned_and_finished`.
+- `mode: 'apply'` waits in `planned` for confirmation in the OTF UI. An apply run without changes ends in `planned_and_finished` and counts as success. Discarding the run in OTF fails the stage.
+- The plugin does not confirm runs itself.
+
+Transient status poll errors (I/O errors, HTTP 5xx, 408, 429) are retried as described in the IaC Pipeline API; other HTTP 4xx responses fail the stage.
 
 ## Example
 
