@@ -10,10 +10,14 @@ import org.kohsuke.stapler.DataBoundSetter;
 /** Declarative stage option: options { otfProvision(...) } */
 public final class OtfProvisionStep extends AbstractProvisionStep {
  private String mode="plan";
- @DataBoundConstructor public OtfProvisionStep(String server,String workspaceId){super(server,workspaceId);}
+ /** workspaceId is an optional setter so that Pipeline Syntax does not list it as required. */
+ @DataBoundConstructor public OtfProvisionStep(String server){super(server);}
+ /** Convenience for Java callers; Pipeline binds workspaceId through {@link #setWorkspaceId}. */
+ public OtfProvisionStep(String server,String workspaceId){super(server,workspaceId);}
  public String getServer(){return getConnectionId();}
  public String getWorkspaceId(){return getTargetId();}
  public String getMode(){return mode;}
+ @DataBoundSetter public void setWorkspaceId(String v){setTargetId(v);}
  @DataBoundSetter public void setMode(String v){
    if(!"plan".equals(v)&&!"apply".equals(v)) throw new IllegalArgumentException("mode must be plan/apply");
    mode=v;
