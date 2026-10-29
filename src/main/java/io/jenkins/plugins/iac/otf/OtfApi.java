@@ -9,6 +9,8 @@ public final class OtfApi {
  private final HttpJsonClient transport;
  private static final Set<String> SUCCESS=Set.of("applied","planned_and_finished");
  private static final Set<String> FAILED=Set.of("errored","canceled","force_canceled","discarded");
+ /** auto-apply is always false, so an apply run with changes waits in planned (cost_estimated if enabled) for confirmation. */
+ private static final Set<String> APPROVAL=Set.of("planned","cost_estimated");
  OtfApi(HttpJsonClient transport){this.transport=transport;}
  public JobResult submit(String workspaceId,String mode) throws IOException,InterruptedException {
   Identifiers.required(workspaceId,"workspaceId");
@@ -26,7 +28,7 @@ public final class OtfApi {
  public void confirm(String id) throws IOException,InterruptedException {
   transport.request("POST","/api/v2/runs/"+Identifiers.required(id,"remoteId")+"/actions/apply",null);
  }
- private static JobResult parse(JsonNode response) throws IOException {
-  return HttpJsonClient.parse(response,SUCCESS,FAILED,Set.of("needs_confirmation","policy_checked"));
+ static JobResult parse(JsonNode response) throws IOException {
+  return HttpJsonClient.parse(response,SUCCESS,FAILED,APPROVAL);
  }
 }
