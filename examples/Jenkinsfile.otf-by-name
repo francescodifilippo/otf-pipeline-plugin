@@ -1,0 +1,21 @@
+pipeline {
+    agent none
+    stages {
+        stage('OTF plan') {
+            agent none
+            options {
+                otfProvision(server: 'otf-prod', organization: 'acme', workspaceName: 'network',
+                             mode: 'plan', operationKey: 'network-plan')
+            }
+            steps { echo 'Plan finished successfully.' }
+        }
+        stage('OTF apply') {
+            agent none
+            options {
+                otfProvision(server: 'otf-prod', organization: 'acme', workspaceName: 'network',
+                             mode: 'apply', operationKey: 'network-apply', timeoutMinutes: 90)
+            }
+            steps { echo 'Apply confirmed in OTF and finished.' }
+        }
+    }
+}

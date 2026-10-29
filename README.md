@@ -36,7 +36,9 @@ Key parameters:
 | Parameter | Purpose |
 | --- | --- |
 | `server` | configured OTF connection name |
-| `workspaceId` | OTF workspace/target |
+| `workspaceId` | OTF workspace ID (`ws-...`); set either `workspaceId` or `workspaceName` |
+| `workspaceName` | exact workspace name, looked up when the stage runs (see [Workspace names](#workspace-names)) |
+| `organization` | OTF organization that contains the workspace; required with `workspaceName`, not allowed with `workspaceId` |
 | `mode` | `plan` or `apply` |
 | `operationKey` | build-local correlation key |
 | `waitForCompletion` | wait now or continue after submission |
@@ -47,9 +49,39 @@ Key parameters:
 
 Uses `server` and a previously submitted `operationKey` to resume waiting later in the same build. The provision stage it refers to must set that `operationKey` explicitly.
 
+## Workspace names
+
+A stage can name its workspace instead of giving its ID:
+
+```groovy
+stage('Plan') {
+  options {
+    otfProvision(
+      server: 'otf-prod',
+      organization: 'acme',
+      workspaceName: 'network',
+      mode: 'plan',
+      operationKey: 'network-plan'
+    )
+  }
+  steps { echo 'Plan completed' }
+}
+```
+
+- Set exactly one of `workspaceId` or `workspaceName`. `workspaceName` requires `organization`, and `organization` is rejected with `workspaceId`, so a stage never carries an organization that is not used. These checks run when the stage starts, before any OTF call.
+- Names follow OTF's rules: `organization` uses letters, numbers, hyphens and underscores; `workspaceName` also allows dots. The plugin limits each to 255 characters (OTF sets no limit) and rejects the workspace names `.` and `..`, which cannot be looked up by name.
+- When the stage runs, the plugin reads the workspace with the stage's connection through OTF's Terraform-compatible "show workspace by name" endpoint, `GET /api/v2/organizations/:organization/workspaces/:name`. Names are case-sensitive and must match exactly. If OTF answers 404 (no such organization or workspace), the stage fails before any run is created. Other errors, such as 403 for a token that cannot read the workspace, fail the stage with their HTTP status. Lookup failures are not retried.
+- The build log shows the resolved workspace, for example `IaC otf: resolved target to ws-abc123`.
+- Everything after the lookup uses the workspace ID: the stored operation, the OTF run, and status polling. The lookup runs once per `otfProvision` stage. `otfAwait` refers to an operation by `operationKey` and never looks up names.
+- A stage with `workspaceId` makes no lookup call and behaves as before.
+
+The lookup needs the workspace `read` permission in OTF. The `plan`, `write` and `admin` workspace roles include it, as do organization owners, so a token that can create runs on the workspace can also look it up.
+
+See [examples/Jenkinsfile.otf-by-name](examples/Jenkinsfile.otf-by-name).
+
 ## Operation keys
 
-- Without `operationKey`, the default key is derived from the provider, `workspaceId`, and `mode`, so a plan stage and an apply stage on the same workspace both submit. Default keys are internal: do not reference them from `otfAwait`.
+- Without `operationKey`, the default key is derived from the provider, `workspaceId` (or `organization` and `workspaceName` instead), and `mode`, so a plan stage and an apply stage on the same workspace both submit. Default keys are internal: do not reference them from `otfAwait`.
 - Reusing an `operationKey` in another `otfProvision` stage of the same build fails that stage instead of adopting the earlier run. This includes a provision stage re-run in the same build, for example inside `retry`: give each attempt its own key.
 
 ## Run status handling
@@ -97,7 +129,7 @@ stage('Await OTF plan') {
 }
 ```
 
-See [examples/Jenkinsfile.otf](examples/Jenkinsfile.otf).
+See [examples/Jenkinsfile.otf](examples/Jenkinsfile.otf), and [examples/Jenkinsfile.otf-by-name](examples/Jenkinsfile.otf-by-name) for a workspace named by `organization` and `workspaceName`.
 
 ## Asynchronous execution
 
@@ -111,9 +143,11 @@ Once the remote ID has been persisted, polling can continue after a Jenkins cont
 
 Store API credentials in Jenkins Credentials, not Pipeline source. Do not persist tokens in operation metadata. See [SECURITY.md](SECURITY.md).
 
+The token needs the `plan` workspace role (or a higher one) to create runs, in either mode. The plugin never confirms an apply run; that is done in OTF by a user with the `write` role. Stages that use `workspaceName` also read the workspace, which the `plan` role already allows.
+
 ## Compatibility
 
-The public DSL intentionally retains the OTF-specific names `server` and `workspaceId`; internally they map to the provider-neutral core connection and target identifiers.
+The public DSL intentionally retains the OTF-specific names `server` and `workspaceId`, with `organization` and `workspaceName` as an alternative to `workspaceId`; internally they map to the provider-neutral core connection and target identifiers.
 
 ## Development
 
