@@ -81,6 +81,33 @@ class OtfDeclarativeTest {
   j.assertLogNotContains("applied body",b);
  }
 
+ @Test void workspaceIdOrWorkspaceNameIsRequired() throws Exception {
+  assertRejected("server: 'otf-test'","otfProvision needs workspaceId, or workspaceName with organization, in the stage options");
+ }
+ @Test void workspaceIdAndWorkspaceNameAreExclusive() throws Exception {
+  assertRejected("server: 'otf-test', workspaceId: 'ws-1', organization: 'acme', workspaceName: 'network'",
+    "Use either workspaceId or workspaceName in the otfProvision stage options, not both");
+ }
+ @Test void workspaceNameNeedsOrganization() throws Exception {
+  assertRejected("server: 'otf-test', workspaceName: 'network'","workspaceName needs organization");
+ }
+ @Test void organizationIsRejectedWithWorkspaceId() throws Exception {
+  assertRejected("server: 'otf-test', workspaceId: 'ws-1', organization: 'acme'","organization is used only with workspaceName");
+ }
+ @Test void invalidWorkspaceNameIsRejected() throws Exception {
+  assertRejected("server: 'otf-test', organization: 'acme', workspaceName: 'net/work'",
+    "workspaceName must contain 1..255 letters, numbers, hyphens, underscores or dots");
+ }
+
+ private void assertRejected(String args,String message) throws Exception {
+  WorkflowRun b=j.buildAndAssertStatus(Result.FAILURE,pipeline(
+    "stage('plan') {\n options {\n otfProvision("+args+")\n }\n steps {\n echo 'plan body'\n }\n}"));
+  j.assertLogContains(message,b);
+  j.assertLogNotContains("submitting target",b);
+  j.assertLogNotContains("plan body",b);
+  assertEquals(0,submits.size());
+ }
+
  private WorkflowJob pipeline(String stages) throws Exception {
   WorkflowJob p=j.createProject(WorkflowJob.class);
   p.setDefinition(new CpsFlowDefinition("pipeline {\n agent none\n stages {\n"+stages+"\n }\n}",true));
