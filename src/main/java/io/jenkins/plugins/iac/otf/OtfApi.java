@@ -25,6 +25,24 @@ public final class OtfApi {
  public JobResult status(String id) throws IOException,InterruptedException {
   return parse(transport.request("GET","/api/v2/runs/"+Identifiers.required(id,"remoteId"),null));
  }
+ /**
+  * ID of the workspace named exactly {@code name} in {@code organization}, read with TFE "show workspace by name"
+  * ({@code GET /api/v2/organizations/:organization/workspaces/:name}). OTF answers 404 when either does not exist.
+  */
+ public String workspaceIdByName(String organization,String name) throws IOException,InterruptedException {
+  JsonNode data;
+  try{
+   data=transport.request("GET","/api/v2/organizations/"+HttpJsonClient.pathSegment(organization)+
+     "/workspaces/"+HttpJsonClient.pathSegment(name),null).path("data");
+  }catch(IacHttpException e){
+   if(e.statusCode()!=404)throw e;
+   throw new IllegalArgumentException("No OTF workspace named '"+name+"' in organization '"+organization+
+     "'; check organization and workspaceName, or use workspaceId",e);
+  }
+  if(!"workspaces".equals(data.path("type").asText())||!name.equals(data.path("attributes").path("name").asText(null)))
+   throw new IOException("OTF did not return workspace '"+name+"' of organization '"+organization+"'");
+  return Identifiers.required(data.path("id").asText(null),"OTF workspace ID");
+ }
  static JobResult parse(JsonNode response) throws IOException {
   return HttpJsonClient.parse(response,SUCCESS,FAILED,APPROVAL);
  }
