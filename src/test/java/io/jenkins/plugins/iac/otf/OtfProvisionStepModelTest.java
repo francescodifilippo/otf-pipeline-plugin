@@ -15,21 +15,21 @@ class OtfProvisionStepModelTest {
  private final DescribableModel<OtfProvisionStep> model=DescribableModel.of(OtfProvisionStep.class);
 
  @Test void onlyServerIsRequired(){
-  assertTrue(model.getParameter("server").isRequired());
+  assertTrue(model.getParameter("connection").isRequired());
   for(String name:new String[]{"workspaceId","organization","workspaceName"})assertFalse(model.getParameter(name).isRequired(),name);
  }
  @Test void workspaceIdRoundTrips(JenkinsRule j) throws Exception {
-  OtfProvisionStep step=model.instantiate(Map.of("server","otf","workspaceId","ws-1","mode","apply"));
+  OtfProvisionStep step=model.instantiate(Map.of("connection","otf","workspaceId","ws-1","mode","apply"));
   assertEquals("ws-1",step.getWorkspaceId());
   Map<String,?> args=DescribableModel.uninstantiate2_(step).getArguments();
-  assertEquals("otf",args.get("server"));
+  assertEquals("otf",args.get("connection"));
   assertEquals("ws-1",args.get("workspaceId"));
   assertEquals("apply",args.get("mode"));
   assertFalse(args.containsKey("organization"));
   assertFalse(args.containsKey("workspaceName"));
  }
  @Test void workspaceNameRoundTrips(JenkinsRule j) throws Exception {
-  OtfProvisionStep step=model.instantiate(Map.of("server","otf","organization","acme","workspaceName","network.prod"));
+  OtfProvisionStep step=model.instantiate(Map.of("connection","otf","organization","acme","workspaceName","network.prod"));
   assertNull(step.getWorkspaceId());
   assertEquals(Map.of("mode","plan","organization","acme","workspaceName","network.prod"),step.parameters());
   Map<String,?> args=DescribableModel.uninstantiate2_(step).getArguments();
@@ -40,7 +40,7 @@ class OtfProvisionStepModelTest {
  @Test void snippetShowsWorkspaceId(JenkinsRule j){
   OtfProvisionStep step=new OtfProvisionStep("otf");step.setWorkspaceId("ws-1");
   String snippet=Snippetizer.object2Groovy(step);
-  assertTrue(snippet.startsWith("otfProvision(server: 'otf', workspaceId: 'ws-1')"),snippet);
+  assertTrue(snippet.startsWith("otfProvision(connection: 'otf', workspaceId: 'ws-1')"),snippet);
  }
  @Test void snippetShowsOnlyTheConfiguredWorkspaceParameters(JenkinsRule j){
   OtfProvisionStep step=new OtfProvisionStep("otf");step.setOrganization("acme");step.setWorkspaceName("network");

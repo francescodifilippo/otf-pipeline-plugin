@@ -4,7 +4,7 @@ pipeline {
         stage('Start OTF plan') {
             agent none
             options {
-                otfProvision(server: 'otf-prod', workspaceId: 'ws-prod', mode: 'plan',
+                otfProvision(connection: 'otf-prod', workspaceId: 'ws-prod', mode: 'plan',
                              operationKey: 'network-plan', waitForCompletion: false)
             }
             steps { echo 'OTF accepted the plan; other stages can proceed.' }
@@ -16,7 +16,7 @@ pipeline {
         stage('Await OTF plan') {
             agent none
             options {
-                otfAwait(server: 'otf-prod', operationKey: 'network-plan',
+                otfAwait(connection: 'otf-prod', operationKey: 'network-plan',
                          timeoutMinutes: 90, pollingSeconds: 10)
             }
             steps { echo 'Plan finished successfully.' }
