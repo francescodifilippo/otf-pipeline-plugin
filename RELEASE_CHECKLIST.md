@@ -21,7 +21,7 @@ Status: **pre-release**.
 - [x] Complete resolved dependency-tree and bundled-license audit: the HPI bundles no third-party library, only Jenkins plugin dependencies
 - [ ] Validate against a real non-production provider endpoint
 - [x] Add deeper Pipeline restart/abort integration coverage (`OtfWorkspaceRestartTest`; abort while polling is covered in the core)
-- [ ] Run Jenkins Plugin Compatibility Tester / plugin verifier
+- [x] Run Jenkins Plugin Compatibility Tester / plugin verifier (PCT 1614.v891225c29865 on 2026-10-30: all tests pass against Jenkins 2.580.2, the latest LTS; the BOM 2.580.x plugins have the same versions as the tested ones, so this checks the newer core)
 - [x] Perform an internal HPI installation on the target Jenkins baseline (2.568.3 on 2026-10-30: plugins resolved by the BOM, `agent none` Declarative builds; `otfWorkspace` and `terrakubeWorkspace` against a local stub, `ociRmStack` up to the real OCI endpoint (401 with a dummy key))
 - [ ] Open Jenkins plugin hosting request
 - [ ] After Jenkins forks the repository, update project/SCM URLs to the canonical `jenkinsci` repository
