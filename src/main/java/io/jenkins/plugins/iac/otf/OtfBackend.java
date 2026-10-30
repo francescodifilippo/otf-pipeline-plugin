@@ -8,8 +8,8 @@ import java.util.Map;
  /** A workspaceId is used as given; a workspaceName is looked up in its organization (read-only). */
  @Override public ResolvedTarget resolve(String connectionId,String targetId,Map<String,String> parameters,Run<?,?> run) throws Exception {
   if(targetId!=null)return new ResolvedTarget(targetId,parameters);
-  String organization=parameters.get("organization"),name=parameters.get("workspaceName");
-  if(organization==null||name==null)throw new IllegalArgumentException("otfProvision needs workspaceId, or workspaceName with organization");
+  String organization=parameters.get("organizationName"),name=parameters.get("workspaceName");
+  if(organization==null||name==null)throw new IllegalArgumentException("otfProvision needs workspaceId, or workspaceName with organizationName");
   try(HttpJsonClient c=OtfConnections.get().client(connectionId,run)){
    return new ResolvedTarget(new OtfApi(c).workspaceIdByName(organization,name),parameters);
   }
