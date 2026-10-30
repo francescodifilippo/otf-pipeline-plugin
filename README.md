@@ -38,7 +38,7 @@ Key parameters:
 | `connection` | configured OTF connection name |
 | `workspaceId` | OTF workspace ID (`ws-...`); set either `workspaceId` or `workspaceName` |
 | `workspaceName` | exact workspace name, looked up when the stage runs (see [Workspace names](#workspace-names)) |
-| `organization` | OTF organization that contains the workspace; required with `workspaceName`, not allowed with `workspaceId` |
+| `organizationName` | name of the OTF organization that contains the workspace; required with `workspaceName`, not allowed with `workspaceId` |
 | `mode` | `plan` or `apply` |
 | `operationKey` | build-local correlation key |
 | `waitForCompletion` | wait now or continue after submission |
@@ -58,7 +58,7 @@ stage('Plan') {
   options {
     otfProvision(
       connection: 'otf-prod',
-      organization: 'acme',
+      organizationName: 'acme',
       workspaceName: 'network',
       mode: 'plan',
       operationKey: 'network-plan'
@@ -68,8 +68,8 @@ stage('Plan') {
 }
 ```
 
-- Set exactly one of `workspaceId` or `workspaceName`. `workspaceName` requires `organization`, and `organization` is rejected with `workspaceId`, so a stage never carries an organization that is not used. These checks run when the stage starts, before any OTF call.
-- Names follow OTF's rules: `organization` uses letters, numbers, hyphens and underscores; `workspaceName` also allows dots. The plugin limits each to 255 characters (OTF sets no limit) and rejects the workspace names `.` and `..`, which cannot be looked up by name.
+- Set exactly one of `workspaceId` or `workspaceName`. `workspaceName` requires `organizationName`, and `organizationName` is rejected with `workspaceId`, so a stage never carries an organization that is not used. These checks run when the stage starts, before any OTF call.
+- Names follow OTF's rules: `organizationName` uses letters, numbers, hyphens and underscores; `workspaceName` also allows dots. The plugin limits each to 255 characters (OTF sets no limit) and rejects the workspace names `.` and `..`, which cannot be looked up by name.
 - When the stage runs, the plugin reads the workspace with the stage's connection through OTF's Terraform-compatible "show workspace by name" endpoint, `GET /api/v2/organizations/:organization/workspaces/:name`. Names are case-sensitive and must match exactly. If OTF answers 404 (no such organization or workspace), the stage fails before any run is created. Other errors, such as 403 for a token that cannot read the workspace, fail the stage with their HTTP status. Lookup failures are not retried.
 - The build log shows the resolved workspace, for example `IaC otf: resolved target to ws-abc123`.
 - Everything after the lookup uses the workspace ID: the stored operation, the OTF run, and status polling. The lookup runs once per `otfProvision` stage. `otfAwait` refers to an operation by `operationKey` and never looks up names.
@@ -81,7 +81,7 @@ See [examples/Jenkinsfile.otf-by-name](examples/Jenkinsfile.otf-by-name).
 
 ## Operation keys
 
-- Without `operationKey`, the default key is derived from the provider, `workspaceId` (or `organization` and `workspaceName` instead), and `mode`, so a plan stage and an apply stage on the same workspace both submit. Default keys are internal: do not reference them from `otfAwait`.
+- Without `operationKey`, the default key is derived from the provider, `workspaceId` (or `organizationName` and `workspaceName` instead), and `mode`, so a plan stage and an apply stage on the same workspace both submit. Default keys are internal: do not reference them from `otfAwait`.
 - Reusing an `operationKey` in another `otfProvision` stage of the same build fails that stage instead of adopting the earlier run. This includes a provision stage re-run in the same build, for example inside `retry`: give each attempt its own key.
 
 ## Run status handling
@@ -129,7 +129,7 @@ stage('Await OTF plan') {
 }
 ```
 
-See [examples/Jenkinsfile.otf](examples/Jenkinsfile.otf), and [examples/Jenkinsfile.otf-by-name](examples/Jenkinsfile.otf-by-name) for a workspace named by `organization` and `workspaceName`.
+See [examples/Jenkinsfile.otf](examples/Jenkinsfile.otf), and [examples/Jenkinsfile.otf-by-name](examples/Jenkinsfile.otf-by-name) for a workspace named by `organizationName` and `workspaceName`.
 
 ## Asynchronous execution
 
@@ -147,9 +147,9 @@ The token needs the `plan` workspace role (or a higher one) to create runs, in e
 
 ## Compatibility
 
-The public DSL uses `connection`, like the other IaC provider plugins, and the OTF-specific `workspaceId`, with `organization` and `workspaceName` as an alternative to `workspaceId`; internally they map to the provider-neutral core connection and target identifiers.
+The public DSL uses `connection`, like the other IaC provider plugins, and the OTF-specific `workspaceId`, with `organizationName` and `workspaceName` as an alternative to `workspaceId`, like the Terrakube provider; internally they map to the provider-neutral core connection and target identifiers.
 
-The step parameter `server` was renamed to `connection` after `0.1.0-beta-1`. Pipelines written for that pre-release must replace `server:` with `connection:`. The saved connection list was renamed too, so connections configured with `0.1.0-beta-1` must be entered again.
+After `0.1.0-beta-1`, the step parameters `server` and `organization` were renamed to `connection` and `organizationName`. Pipelines written for that pre-release must replace `server:` with `connection:` and `organization:` with `organizationName:`. The saved connection list was renamed too, so connections configured with `0.1.0-beta-1` must be entered again.
 
 ## Possible future features
 

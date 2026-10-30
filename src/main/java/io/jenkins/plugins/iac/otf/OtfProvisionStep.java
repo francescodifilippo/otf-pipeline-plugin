@@ -9,23 +9,23 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 /**
  * Declarative stage option: options { otfProvision(...) }. The workspace is either {@code workspaceId} or
- * {@code workspaceName} with {@code organization}, which {@link OtfBackend#resolve} looks up when the stage runs.
+ * {@code workspaceName} with {@code organizationName}, which {@link OtfBackend#resolve} looks up when the stage runs.
  */
 public final class OtfProvisionStep extends AbstractProvisionStep {
- private String mode="plan",organization,workspaceName;
+ private String mode="plan",organizationName,workspaceName;
  /** workspaceId is an optional setter so that Pipeline Syntax does not list it as required. */
  @DataBoundConstructor public OtfProvisionStep(String connection){super(connection);}
  /** Convenience for Java callers; Pipeline binds workspaceId through {@link #setWorkspaceId}. */
  public OtfProvisionStep(String connection,String workspaceId){super(connection,workspaceId);}
  public String getConnection(){return getConnectionId();}
  public String getWorkspaceId(){return getTargetId();}
- public String getOrganization(){return organization;}
+ public String getOrganizationName(){return organizationName;}
  public String getWorkspaceName(){return workspaceName;}
  public String getMode(){return mode;}
  @DataBoundSetter public void setWorkspaceId(String v){setTargetId(v);}
  /** OTF organization names: letters, digits, hyphens and underscores. */
- @DataBoundSetter public void setOrganization(String v){
-   organization=name(v,"organization","[A-Za-z0-9_-]+","letters, numbers, hyphens or underscores");
+ @DataBoundSetter public void setOrganizationName(String v){
+   organizationName=name(v,"organizationName","[A-Za-z0-9_-]+","letters, numbers, hyphens or underscores");
  }
  /** OTF workspace names: letters, digits, hyphens, underscores and dots. */
  @DataBoundSetter public void setWorkspaceName(String v){
@@ -43,13 +43,13 @@ public final class OtfProvisionStep extends AbstractProvisionStep {
   if(workspaceId!=null&&workspaceName!=null)
    throw new IllegalArgumentException("Use either workspaceId or workspaceName in the otfProvision stage options, not both");
   if(workspaceId==null&&workspaceName==null)
-   throw new IllegalArgumentException("otfProvision needs workspaceId, or workspaceName with organization, in the stage options");
-  if(workspaceName!=null&&organization==null)
-   throw new IllegalArgumentException("workspaceName needs organization (name of the OTF organization that contains the workspace) in the otfProvision stage options");
-  if(workspaceId!=null&&organization!=null)
-   throw new IllegalArgumentException("organization is used only with workspaceName; remove it from the otfProvision stage options when workspaceId is set");
+   throw new IllegalArgumentException("otfProvision needs workspaceId, or workspaceName with organizationName, in the stage options");
+  if(workspaceName!=null&&organizationName==null)
+   throw new IllegalArgumentException("workspaceName needs organizationName (name of the OTF organization that contains the workspace) in the otfProvision stage options");
+  if(workspaceId!=null&&organizationName!=null)
+   throw new IllegalArgumentException("organizationName is used only with workspaceName; remove it from the otfProvision stage options when workspaceId is set");
   Map<String,String> p=new LinkedHashMap<>();p.put("mode",mode);
-  if(workspaceName!=null){p.put("organization",organization);p.put("workspaceName",workspaceName);}
+  if(workspaceName!=null){p.put("organizationName",organizationName);p.put("workspaceName",workspaceName);}
   return p;
  }
  /** Null for null/blank; otherwise 1..255 characters matching {@code pattern}. OTF itself sets no length limit. */

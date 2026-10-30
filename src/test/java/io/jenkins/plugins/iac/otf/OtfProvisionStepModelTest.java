@@ -16,7 +16,7 @@ class OtfProvisionStepModelTest {
 
  @Test void onlyServerIsRequired(){
   assertTrue(model.getParameter("connection").isRequired());
-  for(String name:new String[]{"workspaceId","organization","workspaceName"})assertFalse(model.getParameter(name).isRequired(),name);
+  for(String name:new String[]{"workspaceId","organizationName","workspaceName"})assertFalse(model.getParameter(name).isRequired(),name);
  }
  @Test void workspaceIdRoundTrips(JenkinsRule j) throws Exception {
   OtfProvisionStep step=model.instantiate(Map.of("connection","otf","workspaceId","ws-1","mode","apply"));
@@ -25,15 +25,15 @@ class OtfProvisionStepModelTest {
   assertEquals("otf",args.get("connection"));
   assertEquals("ws-1",args.get("workspaceId"));
   assertEquals("apply",args.get("mode"));
-  assertFalse(args.containsKey("organization"));
+  assertFalse(args.containsKey("organizationName"));
   assertFalse(args.containsKey("workspaceName"));
  }
  @Test void workspaceNameRoundTrips(JenkinsRule j) throws Exception {
-  OtfProvisionStep step=model.instantiate(Map.of("connection","otf","organization","acme","workspaceName","network.prod"));
+  OtfProvisionStep step=model.instantiate(Map.of("connection","otf","organizationName","acme","workspaceName","network.prod"));
   assertNull(step.getWorkspaceId());
-  assertEquals(Map.of("mode","plan","organization","acme","workspaceName","network.prod"),step.parameters());
+  assertEquals(Map.of("mode","plan","organizationName","acme","workspaceName","network.prod"),step.parameters());
   Map<String,?> args=DescribableModel.uninstantiate2_(step).getArguments();
-  assertEquals("acme",args.get("organization"));
+  assertEquals("acme",args.get("organizationName"));
   assertEquals("network.prod",args.get("workspaceName"));
   assertFalse(args.containsKey("workspaceId"));
  }
@@ -43,9 +43,9 @@ class OtfProvisionStepModelTest {
   assertTrue(snippet.startsWith("otfProvision(connection: 'otf', workspaceId: 'ws-1')"),snippet);
  }
  @Test void snippetShowsOnlyTheConfiguredWorkspaceParameters(JenkinsRule j){
-  OtfProvisionStep step=new OtfProvisionStep("otf");step.setOrganization("acme");step.setWorkspaceName("network");
+  OtfProvisionStep step=new OtfProvisionStep("otf");step.setOrganizationName("acme");step.setWorkspaceName("network");
   String snippet=Snippetizer.object2Groovy(step);
-  assertTrue(snippet.contains("organization: 'acme'")&&snippet.contains("workspaceName: 'network'"),snippet);
+  assertTrue(snippet.contains("organizationName: 'acme'")&&snippet.contains("workspaceName: 'network'"),snippet);
   assertFalse(snippet.contains("workspaceId"),snippet);
  }
  @Test void workspaceIdKeepsItsParametersAndDefaultKey(){
@@ -53,17 +53,17 @@ class OtfProvisionStepModelTest {
   assertEquals(Map.of("mode","plan"),step.parameters());
  }
  @Test void blankNamesAreUnset(){
-  OtfProvisionStep step=new OtfProvisionStep("otf","ws-1");step.setOrganization(" ");step.setWorkspaceName("");
-  assertNull(step.getOrganization());
+  OtfProvisionStep step=new OtfProvisionStep("otf","ws-1");step.setOrganizationName(" ");step.setWorkspaceName("");
+  assertNull(step.getOrganizationName());
   assertNull(step.getWorkspaceName());
  }
  @Test void namesFollowOtfRules(){
   OtfProvisionStep step=new OtfProvisionStep("otf");
-  step.setOrganization("_acme-2");step.setWorkspaceName("-net_work.prod-1");
-  assertEquals("_acme-2",step.getOrganization());
+  step.setOrganizationName("_acme-2");step.setWorkspaceName("-net_work.prod-1");
+  assertEquals("_acme-2",step.getOrganizationName());
   assertEquals("-net_work.prod-1",step.getWorkspaceName());
   for(String bad:new String[]{"ac.me","ac me","acme/x","acmé","a\nb","x".repeat(256)})
-   assertThrows(IllegalArgumentException.class,()->step.setOrganization(bad),bad);
+   assertThrows(IllegalArgumentException.class,()->step.setOrganizationName(bad),bad);
   for(String bad:new String[]{"net work","net/work","net%2Fwork","a\tb","ws?x","x".repeat(256)})
    assertThrows(IllegalArgumentException.class,()->step.setWorkspaceName(bad),bad);
   for(String dots:new String[]{".",".."})

@@ -111,7 +111,7 @@ class OtfDeclarativeTest {
  @Test void workspaceNameIsResolvedOnceThenAwaited() throws Exception {
   statuses.add("planned");statuses.add("applied");
   WorkflowRun b=j.buildAndAssertSuccess(pipeline(
-    "stage('apply') {\n options {\n otfProvision(connection: 'otf-test', organization: 'acme', workspaceName: 'db.prod', mode: 'apply', operationKey: 'deploy', waitForCompletion: false)\n }\n"+
+    "stage('apply') {\n options {\n otfProvision(connection: 'otf-test', organizationName: 'acme', workspaceName: 'db.prod', mode: 'apply', operationKey: 'deploy', waitForCompletion: false)\n }\n"+
     " steps {\n echo 'submitted'\n }\n}\n"+
     "stage('await') {\n options {\n otfAwait(connection: 'otf-test', operationKey: 'deploy', pollingSeconds: 5)\n }\n"+
     " steps {\n echo 'awaited'\n }\n}"));
@@ -135,7 +135,7 @@ class OtfDeclarativeTest {
 
  @Test void unknownWorkspaceNameFailsBeforeSubmitting() throws Exception {
   WorkflowRun b=j.buildAndAssertStatus(Result.FAILURE,pipeline(byName("Network")));
-  j.assertLogContains("No OTF workspace named 'Network' in organization 'acme'; check organization and workspaceName, or use workspaceId",b);
+  j.assertLogContains("No OTF workspace named 'Network' in organization 'acme'; check organizationName and workspaceName, or use workspaceId",b);
   assertEquals(1,lookups.size());
   assertEquals(0,submits.size());
   j.assertLogNotContains("submitting target",b);
@@ -151,20 +151,20 @@ class OtfDeclarativeTest {
  }
 
  @Test void workspaceIdOrWorkspaceNameIsRequired() throws Exception {
-  assertRejected("connection: 'otf-test'","otfProvision needs workspaceId, or workspaceName with organization, in the stage options");
+  assertRejected("connection: 'otf-test'","otfProvision needs workspaceId, or workspaceName with organizationName, in the stage options");
  }
  @Test void workspaceIdAndWorkspaceNameAreExclusive() throws Exception {
-  assertRejected("connection: 'otf-test', workspaceId: 'ws-1', organization: 'acme', workspaceName: 'network'",
+  assertRejected("connection: 'otf-test', workspaceId: 'ws-1', organizationName: 'acme', workspaceName: 'network'",
     "Use either workspaceId or workspaceName in the otfProvision stage options, not both");
  }
  @Test void workspaceNameNeedsOrganization() throws Exception {
-  assertRejected("connection: 'otf-test', workspaceName: 'network'","workspaceName needs organization");
+  assertRejected("connection: 'otf-test', workspaceName: 'network'","workspaceName needs organizationName");
  }
  @Test void organizationIsRejectedWithWorkspaceId() throws Exception {
-  assertRejected("connection: 'otf-test', workspaceId: 'ws-1', organization: 'acme'","organization is used only with workspaceName");
+  assertRejected("connection: 'otf-test', workspaceId: 'ws-1', organizationName: 'acme'","organizationName is used only with workspaceName");
  }
  @Test void invalidWorkspaceNameIsRejected() throws Exception {
-  assertRejected("connection: 'otf-test', organization: 'acme', workspaceName: 'net/work'",
+  assertRejected("connection: 'otf-test', organizationName: 'acme', workspaceName: 'net/work'",
     "workspaceName must contain 1..255 letters, numbers, hyphens, underscores or dots");
  }
 
@@ -178,7 +178,7 @@ class OtfDeclarativeTest {
   assertEquals(List.of(),lookups);
  }
  private static String byName(String name){
-  return "stage('plan "+name+"') {\n options {\n otfProvision(connection: 'otf-test', organization: 'acme', workspaceName: '"+name+"', pollingSeconds: 5)\n }\n"+
+  return "stage('plan "+name+"') {\n options {\n otfProvision(connection: 'otf-test', organizationName: 'acme', workspaceName: '"+name+"', pollingSeconds: 5)\n }\n"+
     " steps {\n echo 'plan body'\n }\n}";
  }
 

@@ -4,7 +4,7 @@ pipeline {
         stage('OTF plan') {
             agent none
             options {
-                otfProvision(connection: 'otf-prod', organization: 'acme', workspaceName: 'network',
+                otfProvision(connection: 'otf-prod', organizationName: 'acme', workspaceName: 'network',
                              mode: 'plan', operationKey: 'network-plan')
             }
             steps { echo 'Plan finished successfully.' }
@@ -12,7 +12,7 @@ pipeline {
         stage('OTF apply') {
             agent none
             options {
-                otfProvision(connection: 'otf-prod', organization: 'acme', workspaceName: 'network',
+                otfProvision(connection: 'otf-prod', organizationName: 'acme', workspaceName: 'network',
                              mode: 'apply', operationKey: 'network-apply', timeoutMinutes: 90)
             }
             steps { echo 'Apply confirmed in OTF and finished.' }

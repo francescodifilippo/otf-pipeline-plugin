@@ -37,7 +37,7 @@ public final class OtfApi {
   }catch(IacHttpException e){
    if(e.statusCode()!=404)throw e;
    throw new IllegalArgumentException("No OTF workspace named '"+name+"' in organization '"+organization+
-     "'; check organization and workspaceName, or use workspaceId",e);
+     "'; check organizationName and workspaceName, or use workspaceId",e);
   }
   if(!"workspaces".equals(data.path("type").asText())||!name.equals(data.path("attributes").path("name").asText(null)))
    throw new IOException("OTF did not return workspace '"+name+"' of organization '"+organization+"'");

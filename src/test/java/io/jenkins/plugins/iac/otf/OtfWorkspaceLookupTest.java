@@ -53,7 +53,7 @@ class OtfWorkspaceLookupTest {
  @Test void notFoundNamesWorkspaceAndOrganization() throws Exception {
   code=404;
   var e=assertThrows(IllegalArgumentException.class,()->lookup("acme","network"));
-  assertEquals("No OTF workspace named 'network' in organization 'acme'; check organization and workspaceName, or use workspaceId",e.getMessage());
+  assertEquals("No OTF workspace named 'network' in organization 'acme'; check organizationName and workspaceName, or use workspaceId",e.getMessage());
   assertEquals(1,requests.size());
  }
  @Test void otherHttpErrorsPropagate(){
@@ -102,7 +102,7 @@ class OtfWorkspaceLookupTest {
  }
  @Test void backendRequiresWorkspaceIdOrBothNames(){
   assertThrows(IllegalArgumentException.class,()->new OtfBackend().resolve("otf-test",null,Map.of("mode","plan","workspaceName","network"),null));
-  assertThrows(IllegalArgumentException.class,()->new OtfBackend().resolve("otf-test",null,Map.of("mode","plan","organization","acme"),null));
+  assertThrows(IllegalArgumentException.class,()->new OtfBackend().resolve("otf-test",null,Map.of("mode","plan","organizationName","acme"),null));
   assertEquals(List.of(),requests);
  }
 }
