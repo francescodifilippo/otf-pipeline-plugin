@@ -149,6 +149,12 @@ The token needs the `plan` workspace role (or a higher one) to create runs, in e
 
 The public DSL intentionally retains the OTF-specific names `server` and `workspaceId`, with `organization` and `workspaceName` as an alternative to `workspaceId`; internally they map to the provider-neutral core connection and target identifiers.
 
+## Possible future features
+
+These ideas are not planned and may never be implemented. They are listed so that the current scope is clear.
+
+- **Workspace creation.** The plugin works only with workspaces that already exist in OTF. A future step could create a workspace, or update its settings such as the VCS repository and variables, and reuse an existing workspace instead of creating a duplicate. Creating and configuring workspaces is a different concern from running plans and applies on them, so this does not seem to belong in this plugin at the moment.
+
 ## Development
 
 ```bash
