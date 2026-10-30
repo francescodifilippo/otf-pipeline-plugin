@@ -1,12 +1,11 @@
 package io.jenkins.plugins.iac.otf;
-import com.cloudbees.plugins.credentials.CredentialsProvider;
 import hudson.model.Run;
 import io.jenkins.plugins.iac.core.AsyncBlockExecution;
 import io.jenkins.plugins.iac.core.HttpJsonClient;
 import io.jenkins.plugins.iac.core.IacHttpException;
+import io.jenkins.plugins.iac.core.VariableMaps;
 import java.io.IOException;
 import java.util.*;
-import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 /**
  * Finds or creates the workspace of an {@code otfWorkspace} step, then lets the body run. OTF
@@ -82,14 +81,9 @@ final class OtfWorkspaceExecution extends AsyncBlockExecution {
  /** Values of the sensitive variables, read from their credentials now and never stored. Keys are "category:name". */
  private Map<String,String> secrets(Run<?,?> run){
   Map<String,String> values=new HashMap<>();
-  spec.sensitiveVariables.forEach((k,id)->values.put("terraform:"+k,secret(id,k,run)));
-  spec.sensitiveEnvironmentVariables.forEach((k,id)->values.put("env:"+k,secret(id,k,run)));
+  spec.sensitiveVariables.forEach((k,id)->values.put("terraform:"+k,VariableMaps.secretText(id,k,run)));
+  spec.sensitiveEnvironmentVariables.forEach((k,id)->values.put("env:"+k,VariableMaps.secretText(id,k,run)));
   return values;
- }
- private static String secret(String id,String variable,Run<?,?> run){
-  StringCredentials c=CredentialsProvider.findCredentialById(id,StringCredentials.class,run,Collections.emptyList());
-  if(c==null)throw new IllegalArgumentException("Missing or inaccessible Secret text credential "+id+" for sensitive variable "+variable);
-  return c.getSecret().getPlainText();
  }
  /** Creates the variables the workspace does not have yet, so that a resumed execution does not repeat any. */
  private void setVariables(OtfApi api,Map<String,String> secrets) throws Exception {
