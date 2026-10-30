@@ -69,7 +69,7 @@ class OtfDeclarativeTest {
   SystemCredentialsProvider.getInstance().save();
   Connection c=new Connection("otf-test","http://127.0.0.1:"+otf.getAddress().getPort(),"otf-token");
   c.setAllowHttp(true);
-  OtfConnections.get().setServers(List.of(c));
+  OtfConnections.get().setConnections(List.of(c));
  }
 
  @AfterEach void tearDown(){otf.stop(0);}
@@ -77,9 +77,9 @@ class OtfDeclarativeTest {
  @Test void asyncApplyReportsApprovalPendingThenAwaits() throws Exception {
   statuses.add("planned");statuses.add("applied");
   WorkflowRun b=j.buildAndAssertSuccess(pipeline(
-    "stage('apply') {\n options {\n otfProvision(server: 'otf-test', workspaceId: 'ws-1', mode: 'apply', operationKey: 'deploy', waitForCompletion: false)\n }\n"+
+    "stage('apply') {\n options {\n otfProvision(connection: 'otf-test', workspaceId: 'ws-1', mode: 'apply', operationKey: 'deploy', waitForCompletion: false)\n }\n"+
     " steps {\n echo 'submitted'\n }\n}\n"+
-    "stage('await') {\n options {\n otfAwait(server: 'otf-test', operationKey: 'deploy', pollingSeconds: 5)\n }\n"+
+    "stage('await') {\n options {\n otfAwait(connection: 'otf-test', operationKey: 'deploy', pollingSeconds: 5)\n }\n"+
     " steps {\n echo 'awaited'\n }\n}"));
   assertEquals(1,submits.size());
   assertTrue(submits.get(0).contains("\"plan-only\":false"),submits.get(0));
@@ -92,7 +92,7 @@ class OtfDeclarativeTest {
  @Test void discardedRunFailsTheStage() throws Exception {
   statuses.add("discarded");
   WorkflowRun b=j.buildAndAssertStatus(Result.FAILURE,pipeline(
-    "stage('apply') {\n options {\n otfProvision(server: 'otf-test', workspaceId: 'ws-1', mode: 'apply', pollingSeconds: 5)\n }\n"+
+    "stage('apply') {\n options {\n otfProvision(connection: 'otf-test', workspaceId: 'ws-1', mode: 'apply', pollingSeconds: 5)\n }\n"+
     " steps {\n echo 'applied body'\n }\n}"));
   j.assertLogContains("Remote operation run-1 failed: discarded",b);
   j.assertLogNotContains("applied body",b);
@@ -101,7 +101,7 @@ class OtfDeclarativeTest {
  @Test void workspaceIdMakesNoLookup() throws Exception {
   statuses.add("planned_and_finished");
   WorkflowRun b=j.buildAndAssertSuccess(pipeline(
-    "stage('plan') {\n options {\n otfProvision(server: 'otf-test', workspaceId: 'ws-1', pollingSeconds: 5)\n }\n steps {\n echo 'plan body'\n }\n}"));
+    "stage('plan') {\n options {\n otfProvision(connection: 'otf-test', workspaceId: 'ws-1', pollingSeconds: 5)\n }\n steps {\n echo 'plan body'\n }\n}"));
   assertEquals(List.of(),lookups);
   assertTrue(submits.get(0).contains("\"id\":\"ws-1\""),submits.get(0));
   j.assertLogNotContains("resolved target",b);
@@ -111,9 +111,9 @@ class OtfDeclarativeTest {
  @Test void workspaceNameIsResolvedOnceThenAwaited() throws Exception {
   statuses.add("planned");statuses.add("applied");
   WorkflowRun b=j.buildAndAssertSuccess(pipeline(
-    "stage('apply') {\n options {\n otfProvision(server: 'otf-test', organization: 'acme', workspaceName: 'db.prod', mode: 'apply', operationKey: 'deploy', waitForCompletion: false)\n }\n"+
+    "stage('apply') {\n options {\n otfProvision(connection: 'otf-test', organization: 'acme', workspaceName: 'db.prod', mode: 'apply', operationKey: 'deploy', waitForCompletion: false)\n }\n"+
     " steps {\n echo 'submitted'\n }\n}\n"+
-    "stage('await') {\n options {\n otfAwait(server: 'otf-test', operationKey: 'deploy', pollingSeconds: 5)\n }\n"+
+    "stage('await') {\n options {\n otfAwait(connection: 'otf-test', operationKey: 'deploy', pollingSeconds: 5)\n }\n"+
     " steps {\n echo 'awaited'\n }\n}"));
   assertEquals(List.of("GET /api/v2/organizations/acme/workspaces/db.prod"),lookups);
   assertEquals(1,submits.size());
@@ -151,20 +151,20 @@ class OtfDeclarativeTest {
  }
 
  @Test void workspaceIdOrWorkspaceNameIsRequired() throws Exception {
-  assertRejected("server: 'otf-test'","otfProvision needs workspaceId, or workspaceName with organization, in the stage options");
+  assertRejected("connection: 'otf-test'","otfProvision needs workspaceId, or workspaceName with organization, in the stage options");
  }
  @Test void workspaceIdAndWorkspaceNameAreExclusive() throws Exception {
-  assertRejected("server: 'otf-test', workspaceId: 'ws-1', organization: 'acme', workspaceName: 'network'",
+  assertRejected("connection: 'otf-test', workspaceId: 'ws-1', organization: 'acme', workspaceName: 'network'",
     "Use either workspaceId or workspaceName in the otfProvision stage options, not both");
  }
  @Test void workspaceNameNeedsOrganization() throws Exception {
-  assertRejected("server: 'otf-test', workspaceName: 'network'","workspaceName needs organization");
+  assertRejected("connection: 'otf-test', workspaceName: 'network'","workspaceName needs organization");
  }
  @Test void organizationIsRejectedWithWorkspaceId() throws Exception {
-  assertRejected("server: 'otf-test', workspaceId: 'ws-1', organization: 'acme'","organization is used only with workspaceName");
+  assertRejected("connection: 'otf-test', workspaceId: 'ws-1', organization: 'acme'","organization is used only with workspaceName");
  }
  @Test void invalidWorkspaceNameIsRejected() throws Exception {
-  assertRejected("server: 'otf-test', organization: 'acme', workspaceName: 'net/work'",
+  assertRejected("connection: 'otf-test', organization: 'acme', workspaceName: 'net/work'",
     "workspaceName must contain 1..255 letters, numbers, hyphens, underscores or dots");
  }
 
@@ -178,7 +178,7 @@ class OtfDeclarativeTest {
   assertEquals(List.of(),lookups);
  }
  private static String byName(String name){
-  return "stage('plan "+name+"') {\n options {\n otfProvision(server: 'otf-test', organization: 'acme', workspaceName: '"+name+"', pollingSeconds: 5)\n }\n"+
+  return "stage('plan "+name+"') {\n options {\n otfProvision(connection: 'otf-test', organization: 'acme', workspaceName: '"+name+"', pollingSeconds: 5)\n }\n"+
     " steps {\n echo 'plan body'\n }\n}";
  }
 

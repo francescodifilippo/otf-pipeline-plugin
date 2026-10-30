@@ -9,7 +9,7 @@ pipeline {
       }
       agent none
       options {
-        otfProvision(server: 'otf-prod', workspaceId: 'ws-main',
+        otfProvision(connection: 'otf-prod', workspaceId: 'ws-main',
           operationKey: 'conditional-plan', mode: 'plan', waitForCompletion: true)
       }
       steps { echo 'Plan complete on main' }

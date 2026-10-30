@@ -35,7 +35,7 @@ Key parameters:
 
 | Parameter | Purpose |
 | --- | --- |
-| `server` | configured OTF connection name |
+| `connection` | configured OTF connection name |
 | `workspaceId` | OTF workspace ID (`ws-...`); set either `workspaceId` or `workspaceName` |
 | `workspaceName` | exact workspace name, looked up when the stage runs (see [Workspace names](#workspace-names)) |
 | `organization` | OTF organization that contains the workspace; required with `workspaceName`, not allowed with `workspaceId` |
@@ -47,7 +47,7 @@ Key parameters:
 
 ### `otfAwait`
 
-Uses `server` and a previously submitted `operationKey` to resume waiting later in the same build. The provision stage it refers to must set that `operationKey` explicitly.
+Uses `connection` and a previously submitted `operationKey` to resume waiting later in the same build. The provision stage it refers to must set that `operationKey` explicitly.
 
 ## Workspace names
 
@@ -57,7 +57,7 @@ A stage can name its workspace instead of giving its ID:
 stage('Plan') {
   options {
     otfProvision(
-      server: 'otf-prod',
+      connection: 'otf-prod',
       organization: 'acme',
       workspaceName: 'network',
       mode: 'plan',
@@ -107,7 +107,7 @@ Transient status poll errors (I/O errors, HTTP 5xx, 408, 429) are retried as des
 stage('Start OTF plan') {
   options {
     otfProvision(
-      server: 'otf-prod',
+      connection: 'otf-prod',
       workspaceId: 'ws-prod',
       mode: 'plan',
       operationKey: 'network-plan',
@@ -120,7 +120,7 @@ stage('Start OTF plan') {
 stage('Await OTF plan') {
   options {
     otfAwait(
-      server: 'otf-prod',
+      connection: 'otf-prod',
       operationKey: 'network-plan',
       timeoutMinutes: 90
     )
@@ -147,7 +147,9 @@ The token needs the `plan` workspace role (or a higher one) to create runs, in e
 
 ## Compatibility
 
-The public DSL intentionally retains the OTF-specific names `server` and `workspaceId`, with `organization` and `workspaceName` as an alternative to `workspaceId`; internally they map to the provider-neutral core connection and target identifiers.
+The public DSL uses `connection`, like the other IaC provider plugins, and the OTF-specific `workspaceId`, with `organization` and `workspaceName` as an alternative to `workspaceId`; internally they map to the provider-neutral core connection and target identifiers.
+
+The step parameter `server` was renamed to `connection` after `0.1.0-beta-1`. Pipelines written for that pre-release must replace `server:` with `connection:`. The saved connection list was renamed too, so connections configured with `0.1.0-beta-1` must be entered again.
 
 ## Possible future features
 

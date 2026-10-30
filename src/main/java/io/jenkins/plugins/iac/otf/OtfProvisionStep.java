@@ -14,10 +14,10 @@ import org.kohsuke.stapler.DataBoundSetter;
 public final class OtfProvisionStep extends AbstractProvisionStep {
  private String mode="plan",organization,workspaceName;
  /** workspaceId is an optional setter so that Pipeline Syntax does not list it as required. */
- @DataBoundConstructor public OtfProvisionStep(String server){super(server);}
+ @DataBoundConstructor public OtfProvisionStep(String connection){super(connection);}
  /** Convenience for Java callers; Pipeline binds workspaceId through {@link #setWorkspaceId}. */
- public OtfProvisionStep(String server,String workspaceId){super(server,workspaceId);}
- public String getServer(){return getConnectionId();}
+ public OtfProvisionStep(String connection,String workspaceId){super(connection,workspaceId);}
+ public String getConnection(){return getConnectionId();}
  public String getWorkspaceId(){return getTargetId();}
  public String getOrganization(){return organization;}
  public String getWorkspaceName(){return workspaceName;}
