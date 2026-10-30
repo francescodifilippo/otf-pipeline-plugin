@@ -13,6 +13,7 @@ Status: **pre-release**.
 - [x] documentation-as-code README and Pipeline examples
 - [x] Jenkins test-harness plugin wiring coverage
 - [ ] Validate provider-side approval behavior and status mapping against a real OTF deployment
+- [ ] Validate `otfWorkspace` creation (VCS connection, plain and sensitive variables), its restart behaviour, and the required team permission against a real OTF deployment
 
 ## Before Jenkins hosting / first release
 

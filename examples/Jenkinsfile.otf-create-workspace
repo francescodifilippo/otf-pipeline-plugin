@@ -1,0 +1,35 @@
+pipeline {
+    agent none
+    stages {
+        stage('OTF workspace') {
+            options {
+                otfWorkspace(
+                    connection: 'otf-prod',
+                    organizationName: 'acme',
+                    workspaceName: 'network',
+                    vcsProviderId: 'vcs-example',
+                    repository: 'acme/infrastructure',
+                    branchName: 'main',
+                    workingDirectory: 'stacks/network',
+                    terraformVersion: '1.6.0',
+                    variables: [region: 'eu-west-1', subnet_count: 3],
+                    environmentVariables: [TF_LOG: 'INFO'],
+                    sensitiveVariables: [db_password: 'network-db-password']
+                )
+            }
+            steps { echo 'Workspace is ready.' }
+        }
+        stage('OTF plan') {
+            options {
+                otfProvision(
+                    connection: 'otf-prod',
+                    organizationName: 'acme',
+                    workspaceName: 'network',
+                    mode: 'plan',
+                    operationKey: 'otf-plan'
+                )
+            }
+            steps { echo 'Plan completed.' }
+        }
+    }
+}

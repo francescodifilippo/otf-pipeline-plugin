@@ -53,7 +53,7 @@ public final class OtfProvisionStep extends AbstractProvisionStep {
   return p;
  }
  /** Null for null/blank; otherwise 1..255 characters matching {@code pattern}. OTF itself sets no length limit. */
- private static String name(String value,String name,String pattern,String allowed){
+ static String name(String value,String name,String pattern,String allowed){
   if(value==null||value.isBlank())return null;
   if(value.length()>255||!value.matches(pattern))
    throw new IllegalArgumentException(name+" must contain 1..255 "+allowed);

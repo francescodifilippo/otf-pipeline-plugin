@@ -30,15 +30,50 @@ public final class OtfApi {
   * ({@code GET /api/v2/organizations/:organization/workspaces/:name}). OTF answers 404 when either does not exist.
   */
  public String workspaceIdByName(String organization,String name) throws IOException,InterruptedException {
+  String id=findWorkspaceId(organization,name);
+  if(id==null)throw new IllegalArgumentException("No OTF workspace named '"+name+"' in organization '"+organization+
+     "'; check organizationName and workspaceName, or use workspaceId");
+  return id;
+ }
+ /** Same read as {@link #workspaceIdByName}, but null when OTF answers 404. */
+ String findWorkspaceId(String organization,String name) throws IOException,InterruptedException {
   JsonNode data;
   try{
-   data=transport.request("GET","/api/v2/organizations/"+HttpJsonClient.pathSegment(organization)+
-     "/workspaces/"+HttpJsonClient.pathSegment(name),null).path("data");
+   data=transport.request("GET",workspacesPath(organization)+"/"+HttpJsonClient.pathSegment(name),null).path("data");
   }catch(IacHttpException e){
-   if(e.statusCode()!=404)throw e;
-   throw new IllegalArgumentException("No OTF workspace named '"+name+"' in organization '"+organization+
-     "'; check organizationName and workspaceName, or use workspaceId",e);
+   if(e.statusCode()==404)return null;
+   throw e;
   }
+  return workspaceId(data,organization,name);
+ }
+ /**
+  * Creates a workspace with TFE "create a workspace" ({@code POST /api/v2/organizations/:organization/workspaces}).
+  * Names are unique in an organization: OTF answers 409 when the workspace already exists.
+  */
+ String createWorkspace(String organization,String name,ObjectNode attributes) throws IOException,InterruptedException {
+  ObjectNode request=HttpJsonClient.JSON.createObjectNode();
+  ObjectNode data=request.putObject("data");data.put("type","workspaces");
+  data.set("attributes",attributes.deepCopy().put("name",name));
+  return workspaceId(transport.request("POST",workspacesPath(organization),request).path("data"),organization,name);
+ }
+ /** Category and key ({@code terraform:region}, {@code env:TF_LOG}) of every variable of the workspace. */
+ Set<String> variableKeys(String workspaceId) throws IOException,InterruptedException {
+  Set<String> keys=new java.util.HashSet<>();
+  for(JsonNode v:transport.request("GET","/api/v2/workspaces/"+Identifiers.required(workspaceId,"workspaceId")+"/vars",null).path("data"))
+   keys.add(v.path("attributes").path("category").asText()+":"+v.path("attributes").path("key").asText());
+  return keys;
+ }
+ /** Creates a workspace variable ({@code POST /api/v2/workspaces/:id/vars}); the value is sent, never logged. */
+ void createVariable(String workspaceId,String category,String key,String value,boolean sensitive) throws IOException,InterruptedException {
+  ObjectNode request=HttpJsonClient.JSON.createObjectNode();
+  ObjectNode data=request.putObject("data");data.put("type","vars");
+  data.putObject("attributes").put("key",key).put("value",value).put("category",category).put("hcl",false).put("sensitive",sensitive);
+  transport.request("POST","/api/v2/workspaces/"+Identifiers.required(workspaceId,"workspaceId")+"/vars",request);
+ }
+ private static String workspacesPath(String organization){
+  return "/api/v2/organizations/"+HttpJsonClient.pathSegment(organization)+"/workspaces";
+ }
+ private static String workspaceId(JsonNode data,String organization,String name) throws IOException {
   if(!"workspaces".equals(data.path("type").asText())||!name.equals(data.path("attributes").path("name").asText(null)))
    throw new IOException("OTF did not return workspace '"+name+"' of organization '"+organization+"'");
   return Identifiers.required(data.path("id").asText(null),"OTF workspace ID");

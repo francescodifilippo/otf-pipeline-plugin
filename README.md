@@ -3,7 +3,7 @@
 **Plugin ID:** `otf-pipeline`  
 **Status:** pre-release
 
-Declarative Jenkins Pipeline integration for Open Terraforming Framework (OTF). The plugin submits remote OTF runs through the shared [IaC Pipeline API](https://github.com/francescodifilippo/iac-pipeline-api-plugin) and can either wait for completion or continue the Jenkins Pipeline and await the run later.
+Declarative Jenkins Pipeline integration for Open Terraforming Framework (OTF). The plugin submits remote OTF runs through the shared [IaC Pipeline API](https://github.com/francescodifilippo/iac-pipeline-api-plugin) and can either wait for completion or continue the Jenkins Pipeline and await the run later. It can also create the workspaces those runs use.
 
 ## Requirements
 
@@ -49,6 +49,29 @@ Key parameters:
 
 Uses `connection` and a previously submitted `operationKey` to resume waiting later in the same build. The provision stage it refers to must set that `operationKey` explicitly.
 
+### `otfWorkspace`
+
+Finds a workspace by name, or creates it with its variables, then runs the stage. It starts no run. See [Workspace creation](#workspace-creation).
+
+| Parameter | Purpose |
+| --- | --- |
+| `connection` | configured OTF connection name |
+| `organizationName` | name of the OTF organization that contains the workspace |
+| `workspaceName` | exact workspace name |
+| `vcsProviderId` | optional ID of an OTF VCS provider of the organization (`vcs-...`); requires `repository` |
+| `repository` | repository path in the VCS provider, for example `acme/infrastructure`; requires `vcsProviderId` |
+| `branchName` | optional branch; the repository's default branch otherwise |
+| `workingDirectory` | optional directory of the Terraform configuration inside the repository |
+| `terraformVersion` | optional Terraform version, for example `1.6.0` or `latest` |
+| `executionMode` | optional `remote`, `local` or `agent`; OTF's default otherwise |
+| `agentPoolId` | agent pool ID (`apool-...`); required with `executionMode: 'agent'` and allowed only with it |
+| `description` | optional workspace description |
+| `variables` | optional map of plain Terraform variables |
+| `environmentVariables` | optional map of plain environment variables |
+| `sensitiveVariables` | optional map from Terraform variable name to the ID of a Jenkins Secret text credential |
+| `sensitiveEnvironmentVariables` | optional map from environment variable name to the ID of a Jenkins Secret text credential |
+| `ifExists` | `keep` (default) or `fail` when the workspace already exists |
+
 ## Workspace names
 
 A stage can name its workspace instead of giving its ID:
@@ -78,6 +101,63 @@ stage('Plan') {
 The lookup needs the workspace `read` permission in OTF. The `plan`, `write` and `admin` workspace roles include it, as do organization owners, so a token that can create runs on the workspace can also look it up.
 
 See [examples/Jenkinsfile.otf-by-name](examples/Jenkinsfile.otf-by-name).
+
+## Workspace creation
+
+`otfWorkspace` creates a workspace in a stage of its own, separate from the stages that run plans and applies:
+
+```groovy
+stage('Workspace') {
+  options {
+    otfWorkspace(
+      connection: 'otf-prod',
+      organizationName: 'acme',
+      workspaceName: 'network',
+      vcsProviderId: 'vcs-example',
+      repository: 'acme/infrastructure',
+      branchName: 'main',
+      variables: [region: 'eu-west-1', subnet_count: 3],
+      sensitiveVariables: [db_password: 'network-db-password']
+    )
+  }
+  steps { echo 'Workspace is ready' }
+}
+```
+
+A later stage runs plans on it with `otfProvision(organizationName: 'acme', workspaceName: 'network')`, as described in [Workspace names](#workspace-names). See [examples/Jenkinsfile.otf-create-workspace](examples/Jenkinsfile.otf-create-workspace).
+
+### Existing workspaces
+
+When the stage runs, the plugin reads the workspace by name, as `otfProvision` does.
+
+- No workspace: the plugin creates it, then creates its variables.
+- An existing workspace: with `ifExists: 'keep'` (default) the stage uses it. Its settings and variables are not compared or changed. With `ifExists: 'fail'` the stage fails.
+
+OTF keeps workspace names unique in an organization. If another build creates the workspace at the same time, OTF rejects the second create, and the plugin treats the workspace as existing.
+
+### VCS repository
+
+The VCS provider must already exist in the organization; the plugin does not create one. Without `vcsProviderId` and `repository` the workspace has no repository, and runs need a configuration uploaded by other means, such as the Terraform CLI. When a repository is connected, OTF registers a webhook in it through the VCS provider.
+
+### Variables
+
+- `variables` and `environmentVariables` hold plain values. Numbers and booleans are turned into strings. They are visible in OTF to anyone who can read the workspace.
+- `sensitiveVariables` and `sensitiveEnvironmentVariables` name a Jenkins **Secret text** credential for each variable. The plugin reads the credential when it creates the variable and sends the value to OTF as a sensitive variable, which OTF never shows again. The value is not stored in the build and never written to the log.
+- A name can be in either the plain or the sensitive map of its category, not both.
+- All values are sent as strings (`hcl: false`).
+
+The plugin checks that every credential exists before it creates the workspace. The build log shows the variable names, never their values.
+
+If a variable cannot be created, the stage fails and names the workspace. The workspace then exists with only some of its variables, and a later run of the stage keeps it as it is: set the missing variables in OTF, or delete the workspace before running the stage again.
+
+### Restarts
+
+The step holds no executor. It saves that it sent the create request before sending it. If Jenkins restarts afterwards, the resumed step finds the workspace, treats it as its own, and creates only the variables that are still missing.
+
+### Permissions
+
+- **User or team token:** creating a workspace needs a team with the organization permission **manage workspaces**, or the owners team. That permission also covers creating the workspace's variables.
+- **Organization token:** it can create workspaces and their variables in its organization, but OTF does not let it create runs. A pipeline that also runs `otfProvision` needs a user or team token for those stages, on another connection.
 
 ## Operation keys
 
@@ -129,7 +209,7 @@ stage('Await OTF plan') {
 }
 ```
 
-See [examples/Jenkinsfile.otf](examples/Jenkinsfile.otf), and [examples/Jenkinsfile.otf-by-name](examples/Jenkinsfile.otf-by-name) for a workspace named by `organizationName` and `workspaceName`.
+See [examples/Jenkinsfile.otf](examples/Jenkinsfile.otf), and [examples/Jenkinsfile.otf-by-name](examples/Jenkinsfile.otf-by-name) for a workspace named by `organizationName` and `workspaceName`. [examples/Jenkinsfile.otf-create-workspace](examples/Jenkinsfile.otf-create-workspace) creates the workspace first.
 
 ## Asynchronous execution
 
@@ -143,19 +223,13 @@ Once the remote ID has been persisted, polling can continue after a Jenkins cont
 
 Store API credentials in Jenkins Credentials, not Pipeline source. Do not persist tokens in operation metadata. See [SECURITY.md](SECURITY.md).
 
-The token needs the `plan` workspace role (or a higher one) to create runs, in either mode. The plugin never confirms an apply run; that is done in OTF by a user with the `write` role. Stages that use `workspaceName` also read the workspace, which the `plan` role already allows.
+The token needs the `plan` workspace role (or a higher one) to create runs, in either mode. `otfWorkspace` needs the organization permission **manage workspaces** (see [Permissions](#permissions)); use a separate connection and token for pipelines that create workspaces. The plugin never confirms an apply run; that is done in OTF by a user with the `write` role. Stages that use `workspaceName` also read the workspace, which the `plan` role already allows.
 
 ## Compatibility
 
 The public DSL uses `connection`, like the other IaC provider plugins, and the OTF-specific `workspaceId`, with `organizationName` and `workspaceName` as an alternative to `workspaceId`, like the Terrakube provider; internally they map to the provider-neutral core connection and target identifiers.
 
 After `0.1.0-beta-1`, the step parameters `server` and `organization` were renamed to `connection` and `organizationName`. Pipelines written for that pre-release must replace `server:` with `connection:` and `organization:` with `organizationName:`. The saved connection list was renamed too, so connections configured with `0.1.0-beta-1` must be entered again.
-
-## Possible future features
-
-These ideas are not planned and may never be implemented. They are listed so that the current scope is clear.
-
-- **Workspace creation.** The plugin works only with workspaces that already exist in OTF. A future step could create a workspace, or update its settings such as the VCS repository and variables, and reuse an existing workspace instead of creating a duplicate. Creating and configuring workspaces is a different concern from running plans and applies on them, so this does not seem to belong in this plugin at the moment.
 
 ## Development
 
